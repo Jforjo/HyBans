@@ -43,19 +43,10 @@ export async function getScammerFromUUID(
 ): Promise<
     GetScammerResponseSuccess | GetScammerResponseError
 >{
-    const jerryBanKey = process.env.JERRY_BAN_KEY;
-
-    if (!jerryBanKey) {
-        return {
-            success: false,
-            reason: "Server misconfiguration: JERRY_BAN_KEY is not set"
-        }
-    }
-
     const res = await fetch(Jerry.routes.getScammerFromUUID(uuid), {
         method: 'GET',
         headers: {
-            Authorization: `Bearer ${jerryBanKey}`
+            Authorization: `Bearer ${process.env.JERRY_BAN_KEY!}`
         }
     });
 
@@ -72,6 +63,41 @@ export async function getScammerFromUUID(
     } else if (res.status === 525) {
         if (tries < 3) {
             return getScammerFromUUID(uuid, tries + 1);
+        }
+    }
+
+    if (!res.ok) {
+        console.log("JerryScammer res", res);
+        console.log("JerryScammer resText", await res.text());
+        return {
+            success: false,
+            reason: "Failed to fetch scammer"
+        }
+    }
+
+    return await res.json() as GetScammerResponseSuccess | GetScammerResponseError;
+}
+export async function getScammerFromDiscord(
+    discordId: string
+): Promise<
+    GetScammerResponseSuccess | GetScammerResponseError
+>{
+    const res = await fetch(Jerry.routes.getScammerFromDiscord(discordId), {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${process.env.JERRY_TOKEN!}`
+        }
+    });
+
+    if (res.status === 400) {
+        return {
+            success: false,
+            reason: "Invalid Discord ID"
+        }
+    } else if (res.status === 403) {
+        return {
+            success: false,
+            reason: "Invalid token"
         }
     }
 

@@ -19,7 +19,7 @@ export default function Banlist() {
 
         const trimmedInput = input.trim();
         if (!trimmedInput) {
-            setError("Please enter a username or UUID.");
+            setError("Please enter a username, UUID or Discord ID.");
             setResult(null);
             return;
         }
@@ -59,7 +59,7 @@ export default function Banlist() {
             >
                 <input
                     type="text"
-                    placeholder="Username or UUID"
+                    placeholder="Username, UUID, or Discord ID"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     autoFocus
@@ -110,7 +110,7 @@ export default function Banlist() {
                 )}
                 {!error && !result && (
                     <p className="text-neutral-600 text-sm text-center">
-                        Submit a username or UUID to see API results.
+                        Submit a username, UUID, or Discord ID to see API results.
                     </p>
                 )}
             </div>

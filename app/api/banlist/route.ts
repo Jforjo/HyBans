@@ -1,4 +1,4 @@
-import { getScammerFromUUID } from "@/lib/jerry";
+import { getScammerFromDiscord, getScammerFromUUID } from "@/lib/jerry";
 import { getUsernameOrUUID } from "@/lib/uuid";
 import { NextResponse } from "next/server";
 
@@ -13,47 +13,65 @@ export async function GET(request: Request) {
         );
     }
 
-    const uuidRes = await getUsernameOrUUID(username);
-    if (!uuidRes.success) {
-        return NextResponse.json(
-            { success: false, message: uuidRes.message },
-            { status: 400 },
-        );
-    }
-
     const bans = [];
-    const isleOfDucksApiKey = process.env.ISLEOFDUCKS_BAN_API_KEY;
 
-    if (!isleOfDucksApiKey) {
-        return NextResponse.json(
-            {
-                success: false,
-                message: "Server misconfiguration: ISLEOFDUCKS_BAN_API_KEY is not set",
-            },
-            { status: 500 },
-        );
+    const uuidRes = await getUsernameOrUUID(username);
+    if (uuidRes.success) {
+        try {
+            const IsleofDuckRes = await fetch(`https://isle-of-ducks.vercel.app/api/ban?uuid=${encodeURIComponent(uuidRes.uuid)}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${process.env.ISLEOFDUCKS_BAN_API_KEY!}`,
+                },
+            });
+            const IsleofDuckData = await IsleofDuckRes.json();
+            if (IsleofDuckData.banned) bans.push({
+                uuid: uuidRes.uuid,
+                source: "Isle of Ducks",
+                reason: IsleofDuckData.reason,
+                discordIds: IsleofDuckData.discords || [],
+            });
+        } catch {}
+
+        try {
+            const jerryScammerResponse = await getScammerFromUUID(uuidRes.uuiddashes);
+            if (jerryScammerResponse.success && jerryScammerResponse.scammer) bans.push({
+                uuid: uuidRes.uuid,
+                source: "Jerry Scammer List (by SkyblockZ: discord.gg/skyblock)",
+                reason: jerryScammerResponse.reason || "No reason provided",
+                discordIds: jerryScammerResponse.details?.discordIds || [],
+            });
+        } catch {}
     }
+    
+    try {
+        const IsleofDuckRes = await fetch(`https://isle-of-ducks.vercel.app/api/ban?uuid=${encodeURIComponent(username)}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.ISLEOFDUCKS_BAN_API_KEY!}`,
+            },
+        });
+        const IsleofDuckData = await IsleofDuckRes.json();
+        if (IsleofDuckData.banned) bans.push({
+            uuid: IsleofDuckData.uuid,
+            source: "Isle of Ducks",
+            reason: IsleofDuckData.reason,
+            discordIds: IsleofDuckData.discords || [],
+        });
+    } catch {}
 
-    const IsleofDuckRes = await fetch(`https://isle-of-ducks.vercel.app/api/ban?uuid=${encodeURIComponent(uuidRes.uuid)}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${isleOfDucksApiKey}`,
-        },
-    });
-    const IsleofDuckData = await IsleofDuckRes.json();
-    if (IsleofDuckData.banned) bans.push({
-        source: "Isle of Ducks",
-        reason: IsleofDuckData.reason,
-        discordIds: IsleofDuckData.discords || [],
-    });
+    try {
+        const jerryScammerDiscordResponse = await getScammerFromDiscord(username);
+        if (jerryScammerDiscordResponse.success && jerryScammerDiscordResponse.scammer) bans.push({
+            uuid: jerryScammerDiscordResponse.details?.uuid,
+            source: "Jerry Scammer List (by SkyblockZ: discord.gg/skyblock)",
+            reason: jerryScammerDiscordResponse.reason || "No reason provided",
+            discordIds: jerryScammerDiscordResponse.details?.discordIds || [],
+        });
+    } catch {}
 
-    const jerryScammerResponse = await getScammerFromUUID(uuidRes.uuiddashes);
-    if (jerryScammerResponse.success && jerryScammerResponse.scammer) bans.push({
-        source: "Jerry Scammer List (by SkyblockZ: discord.gg/skyblock)",
-        reason: jerryScammerResponse.reason || "No reason provided",
-        discordIds: jerryScammerResponse.details?.discordIds || [],
-    })
-
-    return NextResponse.json(bans, { status: 200 });
+    const uniqueBans = Array.from(new Map(bans.map(ban => [ban.uuid, ban])).values());
+    return NextResponse.json(uniqueBans, { status: 200 });
 }
