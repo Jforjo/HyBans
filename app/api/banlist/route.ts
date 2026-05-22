@@ -1,4 +1,5 @@
 import { getScammerFromDiscord, getScammerFromUUID } from "@/lib/jerry";
+import { getSBUBanlistFromUUID } from "@/lib/sbu";
 import { getUsernameOrUUID } from "@/lib/uuid";
 import { NextResponse } from "next/server";
 
@@ -43,6 +44,18 @@ export async function GET(request: Request) {
                 discordIds: jerryScammerResponse.details?.discordIds || [],
             });
         } catch {}
+
+        try {
+            const sbuBanlistResponse = await getSBUBanlistFromUUID(uuidRes.uuid);
+            if (sbuBanlistResponse.success && sbuBanlistResponse.banned) bans.push({
+                uuid: uuidRes.uuid,
+                source: "Skyblock University",
+                reason: sbuBanlistResponse.details?.reason || "No reason provided",
+                discordIds: [], // SBU doesn't provide Discord IDs in their API
+            });
+        } catch {
+            console.error(`Failed to fetch SBU banlist for UUID: ${uuidRes.uuid}`);
+        }
     }
     
     try {
