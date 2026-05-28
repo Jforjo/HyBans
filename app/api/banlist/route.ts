@@ -1,5 +1,6 @@
 import { getScammerFromDiscord, getScammerFromUUID } from "@/lib/jerry";
 import { getSBUBanlistFromUUID } from "@/lib/sbu";
+import { getScammerListFromIDs } from "@/lib/scammerlist";
 import { getUsernameOrUUID } from "@/lib/uuid";
 import { NextResponse } from "next/server";
 
@@ -82,6 +83,16 @@ export async function GET(request: Request) {
             source: "Jerry Scammer List (by SkyblockZ: discord.gg/skyblock)",
             reason: jerryScammerDiscordResponse.reason || "No reason provided",
             discordIds: jerryScammerDiscordResponse.details?.discordIds || [],
+        });
+    } catch {}
+
+    try {
+        const scammerListResponse = await getScammerListFromIDs([username]);
+        if (scammerListResponse.success && scammerListResponse.data && scammerListResponse.data.results[username]) bans.push({
+            uuid: scammerListResponse.data.results[username].id,
+            source: "Scammer List",
+            reason: `${scammerListResponse.data.results[username].method} (${scammerListResponse.data.results[username].scammed})` || "No reason provided",
+            discordIds: scammerListResponse.data.results[username].known_alts_ids || [],
         });
     } catch {}
 
